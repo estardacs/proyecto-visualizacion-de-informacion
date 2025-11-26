@@ -4,15 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pizza Index</title>
-    <link rel="icon" href="assets/icons/pizza.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="style.css">
-</head>
-
-<body>
-    <!-- Scripts de Protobject Framework -->
-    <script src="https://app.protobject.com/framework/p.js"></script>
-    <script src="config.js"></script>
+        <title>Pizza Index</title>
+        <link rel="icon" href="assets/icons/pizza.svg" type="image/svg+xml">
+        <link rel="stylesheet" href="style.css">
 
     <div class="container">
         <header class="header">
@@ -23,63 +17,72 @@
             <p>Detector de pizzas en tiempo real - Vista del Computador</p>
         </header>
 
-        <div class="instructions">
-            <h2>📋 Instrucciones:</h2>
-            <ol>
-                <li>Esta página se abre en tu <strong>COMPUTADOR</strong></li>
-                <li>Haz clic en el botón <strong>"+ Connect"</strong> en la esquina superior derecha</li>
-                <li>Escanea el código QR con la cámara de tu <strong>CELULAR</strong></li>
-                <li>En el celular, acepta los permisos de cámara</li>
-                <li>La detección de pizzas aparecerá aquí en el computador</li>
-            </ol>
-        </div>
+            <div class="main-controls">
+                <div class="button-group">
+                    <button id="local-camera-btn" class="btn-primary">🎥 Usar Cámara Local</button>
+                    <button id="stop-camera-btn" class="btn-secondary" style="display: none;">⏹️ Detener Cámara</button>
+                </div>
+                <div class="button-group">
+                    <button id="start-audio-btn" class="btn-primary">🔊 Iniciar Audio</button>
+                    <button id="stop-audio-btn" class="btn-secondary muted" style="display: none;">🔇 Silenciar Todo</button>
+                </div>
+            </div>
 
         <div id="video-container">
+            <video id="video" autoplay playsinline style="display: none;"></video>
             <canvas id="canvas"></canvas>
+            <canvas id="detection-canvas"></canvas>
             <div id="placeholder">
-                <p>📱 Esperando conexión del celular...</p>
-                <p class="small">Haz clic en "+ Connect" arriba para generar el QR</p>
+                <p>📱 Esperando conexión del celular o cámara local...</p>
+                <p class="small">Haz clic en "+ Connect" para usar celular o "🎥 Usar Cámara Local"</p>
             </div>
         </div>
 
         <div id="info">
-            <div id="status">🔵 Esperando conexión del celular</div>
+            <div id="status">🔵 Listo para detectar pizzas</div>
             <div id="detection">Ninguna pizza detectada</div>
         </div>
 
-        <div class="stats-container">
-            <h3>📊 Estadísticas de Detección:</h3>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label">Frames recibidos:</span>
-                    <span class="stat-value" id="frame-count">0</span>
+        <!-- EVENTO DETECTADO -->
+        <div id="event-display" class="event-display" style="display: none;">
+            <div class="event-header">
+                <h2 id="event-title">Evento Detectado</h2>
+                <button id="clear-event" class="btn-clear">+</button>
+            </div>
+            <div class="event-content">
+                <div class="event-main">
+                    <div class="event-emoji" id="event-emoji">🍕</div>
+                    <div class="event-details">
+                        <h3 id="event-name">Nombre del Evento</h3>
+                        <p id="event-date" class="event-date">Fecha</p>
+                        <p id="event-category" class="event-category">Categoría</p>
+                    </div>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Brillo promedio:</span>
-                    <span class="stat-value" id="brightness">0</span>
+                <div class="event-stats">
+                    <div class="stat-box">
+                        <div class="stat-label">Pizzas Críticas</div>
+                        <div class="stat-number" id="event-pizzas-criticas">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Incremento</div>
+                        <div class="stat-number" id="event-incremento">0%</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Gravedad</div>
+                        <div class="stat-number" id="event-gravedad">-</div>
+                    </div>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">🔴 Rojo:</span>
-                    <span class="stat-value" id="red-percent">0%</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">🟢 Verde:</span>
-                    <span class="stat-value" id="green-percent">0%</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">🔵 Azul:</span>
-                    <span class="stat-value" id="blue-percent">0%</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">🟡 Amarillo:</span>
-                    <span class="stat-value" id="yellow-percent">0%</span>
+                <div class="event-description">
+                    <p id="event-desc">Descripción del evento</p>
                 </div>
             </div>
         </div>
 
-        <div class="debug-info">
-            <h4>📊 Registro de Conexión:</h4>
-            <div id="debug-log"></div>
+        <div class="stats-container">
+            <h3>🤖 Predicciones del Modelo ML (Teachable Machine):</h3>
+            <div id="ml-predictions" class="ml-predictions">
+                <p class="loading-ml">Cargando modelo...</p>
+            </div>
         </div>
 
         <footer class="footer">
@@ -88,19 +91,70 @@
         </footer>
     </div>
 
+    <!-- Scripts movidos al final para asegurar que el DOM esté cargado -->
+    <!-- TensorFlow.js y Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+    
+    <!-- Motor de Audio -->
+    <script src="https://unpkg.com/tone@14.7.77/build/Tone.js"></script>
+    <!-- Datos de eventos -->
+    <script src="events.js"></script>
+    <script src="audio.js"></script>
+
+    <!-- Scripts de Protobject Framework -->
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
     <script>
         // ==========================================
         // VARIABLES GLOBALES
         // ==========================================
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const detectionCanvas = document.getElementById('detection-canvas');
+        const detectionCtx = detectionCanvas.getContext('2d');
+        const video = document.getElementById('video');
         const statusEl = document.getElementById('status');
         const detectionEl = document.getElementById('detection');
         const debugLog = document.getElementById('debug-log');
-        const placeholder = document.getElementById('placeholder');
-
+                    const placeholder = document.getElementById('placeholder');
+                    const localCameraBtn = document.getElementById('local-camera-btn');
+                    const stopCameraBtn = document.getElementById('stop-camera-btn');
+                    const startAudioBtn = document.getElementById('start-audio-btn');
+                    const stopAudioBtn = document.getElementById('stop-audio-btn');
+                    const mlPredictionsEl = document.getElementById('ml-predictions');
         let frameCount = 0;
         let isConnected = false;
+        let localStream = null;
+        let animationId = null;
+
+        // Variables para el modelo ML
+        let model = null;
+        let modelLoaded = false;
+        const MODEL_URL = './model.json';
+        const METADATA_URL = './metadata.json';
+
+        // Variables para detección de eventos
+        let eventoActual = null;
+        let pixelsPorCm = 20; // Calibración inicial (ajustar según setup)
+
+        // =======================================================================
+        // ASIGNACIÓN DE CLASES DEL MODELO A EVENTOS
+        // 
+        // ❗ IMPORTANTE: Edita esta sección para que coincida con tus clases
+        // El "nombre de la clase" debe ser EXACTAMENTE el mismo que en Teachable Machine.
+        // =======================================================================
+        const MODEL_CLASS_MAPPING = {
+            // Ejemplo:
+            // "Nombre de Clase de Teachable Machine": { color: "ROJO", tamaño: 15 },
+            
+            "Class 1": { color: "ROJO", tamaño: 15 },   // Mapeado a Invasión de Irak
+            "Class 2": { color: "AZUL", tamaño: 15 },   // Mapeado a 11 de Septiembre
+            
+            // --- AGREGA TUS OTRAS CLASES AQUÍ ---
+
+        };
 
         // ==========================================
         // FUNCIONES DE DEBUG
@@ -118,6 +172,11 @@
 
                 debugLog.appendChild(entry);
                 debugLog.scrollTop = debugLog.scrollHeight;
+
+                // Mantener solo los últimos 50 logs
+                while (debugLog.children.length > 50) {
+                    debugLog.removeChild(debugLog.firstChild);
+                }
             }
         }
 
@@ -132,6 +191,256 @@
         }
 
         // ==========================================
+        // FUNCIONES DE EVENTOS
+        // ==========================================
+        function mostrarEvento(evento) {
+            if (!evento) return;
+
+            eventoActual = evento;
+            const display = document.getElementById('event-display');
+
+            // Actualizar contenido
+            document.getElementById('event-emoji').textContent = evento.emoji;
+            document.getElementById('event-name').textContent = evento.nombre;
+            document.getElementById('event-date').textContent = evento.fecha;
+            document.getElementById('event-category').textContent = evento.categoria;
+            document.getElementById('event-pizzas-criticas').textContent = evento.pizzasCriticas;
+            document.getElementById('event-incremento').textContent = evento.incremento + '%';
+            document.getElementById('event-gravedad').textContent = TAMAÑOS_CONFIG[evento.tamaño].gravedad;
+            document.getElementById('event-desc').textContent = evento.descripcion;
+
+            // Aplicar color de categoría
+            const colorConfig = COLORES_CONFIG[evento.color];
+            display.style.borderColor = colorConfig.hex;
+            display.style.borderLeftColor = colorConfig.hex;
+            display.style.borderLeftWidth = '6px';
+
+            // Mostrar con animación
+            display.style.display = 'block';
+            setTimeout(() => display.classList.add('show'), 10);
+
+            log(`🎯 Evento detectado: ${evento.nombre} (${evento.color}, ${evento.tamaño}cm)`, 'success');
+            updateStatus(`✅ Evento: ${evento.nombre}`, 'success');
+        }
+
+        function cerrarEvento() {
+            const display = document.getElementById('event-display');
+            display.classList.remove('show');
+            setTimeout(() => {
+                display.style.display = 'none';
+                eventoActual = null;
+            }, 300);
+            updateStatus('🔵 Listo para detectar pizzas', 'info');
+        }
+
+        // Botón para cerrar evento
+        document.getElementById('clear-event').addEventListener('click', cerrarEvento);
+
+        // ==========================================
+        // CARGAR MODELO DE TEACHABLE MACHINE
+        // ==========================================
+        async function cargarModelo() {
+            try {
+                log('🤖 Cargando modelo de TensorFlow...', 'info');
+                mlPredictionsEl.innerHTML = '<p class="loading-ml">⏳ Cargando modelo ML...</p>';
+
+                // Cargar modelo usando Teachable Machine Library
+                model = await tmImage.load(MODEL_URL, METADATA_URL);
+                modelLoaded = true;
+
+                log('✅ Modelo ML cargado correctamente!', 'success');
+                log(`📊 Clases detectadas: ${model.getClassLabels().join(', ')}`, 'info');
+
+                mlPredictionsEl.innerHTML = `
+                    <div class="ml-ready">
+                        <p>✅ Modelo cargado</p>
+                        <p class="ml-classes">Clases: ${model.getClassLabels().join(', ')}</p>
+                    </div>
+                `;
+
+            } catch (error) {
+                log('❌ Error cargando modelo: ' + error.message, 'error');
+                mlPredictionsEl.innerHTML = `<p class="error-ml">❌ Error cargando modelo</p>`;
+                modelLoaded = false;
+            }
+        }
+
+        // ==========================================
+        // HACER PREDICCIÓN Y MANEJAR LÓGICA DE EVENTOS
+        // ==========================================
+        async function predecirConModelo() {
+            if (!modelLoaded || !model || !canvas.width) return;
+
+            try {
+                // 1. Hacer predicción usando el canvas actual
+                const predictions = await model.predict(canvas);
+                predictions.sort((a, b) => b.probability - a.probability);
+
+                // 2. Actualizar la UI de predicciones de ML
+                const predHTML = predictions.map((pred, idx) => {
+                    const percentage = (pred.probability * 100).toFixed(1);
+                    const barWidth = percentage;
+                    const isTop = idx === 0;
+                    return `
+                        <div class="prediction-item ${isTop ? 'top-prediction' : ''}">
+                            <div class="prediction-label">${pred.className}</div>
+                            <div class="prediction-bar-container">
+                                <div class="prediction-bar" style="width: ${barWidth}%"></div>
+                            </div>
+                            <div class="prediction-value">${percentage}%</div>
+                        </div>
+                    `;
+                }).join('');
+                mlPredictionsEl.innerHTML = predHTML;
+
+                // 3. Lógica de activación de eventos basada en la predicción
+                const topPrediction = predictions[0];
+                const confidenceThreshold = 0.95; // Umbral de confianza (95%)
+
+                if (topPrediction && topPrediction.probability > confidenceThreshold) {
+                    const detectedClassName = topPrediction.className;
+                    const eventConfig = MODEL_CLASS_MAPPING[detectedClassName];
+
+                    if (eventConfig) {
+                        const eventoDetectado = buscarEvento(eventConfig.color, eventConfig.tamaño);
+
+                        if (eventoDetectado) {
+                            // Si el evento detectado es diferente al actual, o si no hay ninguno
+                            if (!eventoActual || eventoActual.id !== eventoDetectado.id) {
+                                AudioEngine.stopAll(); // Detener sonidos anteriores
+                                AudioEngine.play(eventoDetectado);
+                                mostrarEvento(eventoDetectado);
+                            }
+                            // Si es el mismo evento, no hacemos nada para no interrumpir el sonido/animación
+                        }
+                    } else {
+                        // La clase detectada no tiene un evento mapeado
+                        if (eventoActual) {
+                            cerrarEvento();
+                            AudioEngine.stopAll();
+                        }
+                    }
+                } else {
+                    // La confianza es muy baja, no hay detección
+                    if (eventoActual) {
+                        cerrarEvento();
+                        AudioEngine.stopAll();
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error en predicción:', error);
+                if (eventoActual) {
+                    cerrarEvento();
+                    AudioEngine.stopAll();
+                }
+            }
+        }
+
+        
+                    // ==========================================
+                    // CONTROLES DE AUDIO
+                    // ==========================================
+                    startAudioBtn.addEventListener('click', async () => {
+                        await AudioEngine.start();
+                        if (AudioEngine.isStarted) {
+                            log('🔊 Motor de audio iniciado.', 'success');
+                            startAudioBtn.style.display = 'none';
+                            stopAudioBtn.style.display = 'inline-block';
+                        } else {
+                            log('❌ El audio no se pudo iniciar. Requiere interacción del usuario.', 'error');
+                        }
+                    });
+        
+                    stopAudioBtn.addEventListener('click', () => {
+                        AudioEngine.stopAll();
+                        stopAudioBtn.classList.toggle('muted');
+                        if (stopAudioBtn.classList.contains('muted')) {
+                            stopAudioBtn.textContent = '🔇 Audio Detenido';
+                        } else {
+                            // This state is not really used as we don't have a resume all function
+                            stopAudioBtn.textContent = '🔊 Iniciar Audio';
+                        }
+                    });
+        
+                    // ==========================================
+                    // CÁMARA LOCAL
+                    // ==========================================
+                    localCameraBtn.addEventListener('click', async () => {
+            try {
+                log('🎥 Iniciando cámara local...', 'info');
+                updateStatus('🔄 Accediendo a cámara...', 'info');
+
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                });
+
+                video.srcObject = localStream;
+                video.style.display = 'none'; // Ocultar video, solo mostrar canvas
+                placeholder.style.display = 'none';
+                isConnected = true;
+
+                localCameraBtn.style.display = 'none';
+                stopCameraBtn.style.display = 'inline-block';
+
+                updateStatus('🟢 Cámara local activa', 'success');
+                log('✅ Cámara local iniciada correctamente', 'success');
+
+                // Procesar frames continuamente
+                processLocalCamera();
+
+            } catch (error) {
+                log('❌ Error accediendo a cámara: ' + error.message, 'error');
+                updateStatus('❌ Error: ' + error.message, 'error');
+            }
+        });
+
+        stopCameraBtn.addEventListener('click', () => {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                video.srcObject = null;
+                isConnected = false;
+
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+
+                placeholder.style.display = 'flex';
+                localCameraBtn.style.display = 'inline-block';
+                stopCameraBtn.style.display = 'none';
+
+                updateStatus('🔵 Cámara detenida', 'info');
+                log('⏹️ Cámara local detenida', 'info');
+            }
+        });
+
+        function processLocalCamera() {
+            if (!isConnected || !video.videoWidth) {
+                animationId = requestAnimationFrame(processLocalCamera);
+                return;
+            }
+
+            // Capturar frame del video
+            if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                detectionCanvas.width = video.videoWidth;
+                detectionCanvas.height = video.videoHeight;
+            }
+
+            ctx.drawImage(video, 0, 0);
+            frameCount++;
+            predecirConModelo();
+
+            animationId = requestAnimationFrame(processLocalCamera);
+        }
+
+        // ==========================================
         // RECIBIR MENSAJES DEL CELULAR
         // ==========================================
         Protobject.Core.onReceived(function (message) {
@@ -139,6 +448,7 @@
                 isConnected = true;
                 placeholder.style.display = 'none';
                 updateStatus('🟢 Celular conectado! Recibiendo video...', 'success');
+                log('📱 Celular conectado exitosamente', 'success');
             }
 
             if (message && message.type === 'frame') {
@@ -155,13 +465,15 @@
                 if (canvas.width !== img.width || canvas.height !== img.height) {
                     canvas.width = img.width;
                     canvas.height = img.height;
+                    detectionCanvas.width = img.width;
+                    detectionCanvas.height = img.height;
                 }
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0);
 
                 frameCount++;
-                detectarPizzas();
+                predecirConModelo();
             };
             img.onerror = () => {
                 log('❌ Error cargando frame', 'error');
@@ -170,85 +482,33 @@
         }
 
         // ==========================================
-        // DETECCIÓN DE PIZZAS
+        // MOSTRAR FRAME DEL CELULAR
         // ==========================================
-        function detectarPizzas() {
-            if (!canvas.width || !canvas.height) return;
-
-            try {
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-
-                let totalBrightness = 0;
-                let redPixels = 0;
-                let greenPixels = 0;
-                let bluePixels = 0;
-                let yellowPixels = 0;
-
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-
-                    totalBrightness += (r + g + b) / 3;
-
-                    // Detectar colores dominantes
-                    if (r > 150 && g < 100 && b < 100) redPixels++;
-                    if (g > 150 && r < 100 && b < 100) greenPixels++;
-                    if (b > 150 && r < 100 && g < 100) bluePixels++;
-                    if (r > 150 && g > 150 && b < 100) yellowPixels++; // Amarillo = rojo + verde
-                }
-
-                const avgBrightness = Math.round(totalBrightness / (data.length / 4));
-                const totalPixels = data.length / 4;
-
-                const redPercent = Math.round(redPixels / totalPixels * 100);
-                const greenPercent = Math.round(greenPixels / totalPixels * 100);
-                const bluePercent = Math.round(bluePixels / totalPixels * 100);
-                const yellowPercent = Math.round(yellowPixels / totalPixels * 100);
-
-                // Actualizar estadísticas
-                document.getElementById('frame-count').textContent = frameCount;
-                document.getElementById('brightness').textContent = avgBrightness;
-                document.getElementById('red-percent').textContent = redPercent + '%';
-                document.getElementById('green-percent').textContent = greenPercent + '%';
-                document.getElementById('blue-percent').textContent = bluePercent + '%';
-                document.getElementById('yellow-percent').textContent = yellowPercent + '%';
-
-                // Detección de pizza (colores típicos: rojo del tomate, amarillo del queso)
-                let pizzaDetected = '';
-                if (yellowPercent > 15 || redPercent > 10) {
-                    pizzaDetected = '🍕 ¡Posible pizza detectada! ';
-                    if (yellowPercent > 15) pizzaDetected += '(Queso detectado) ';
-                    if (redPercent > 10) pizzaDetected += '(Salsa de tomate detectada) ';
-                } else {
-                    pizzaDetected = 'Ninguna pizza detectada';
-                }
-
-                detectionEl.textContent = pizzaDetected;
-
-            } catch (error) {
-                log('❌ Error en detección: ' + error, 'error');
-            }
-        }
 
         // ==========================================
         // INICIALIZACIÓN
         // ==========================================
         log('🍕 Pizza Index iniciado (Computador)', 'success');
-        log('📱 Esperando que el celular se conecte...', 'info');
-        updateStatus('🔵 Esperando conexión del celular', 'info');
+        log('📱 Esperando que el celular se conecte o usar cámara local...', 'info');
+        updateStatus('🔵 Listo para detectar pizzas', 'info');
+
+        // Cargar modelo de ML
+        cargarModelo();
     </script>
 </body>
 
 <style>
     /* Personalizar botón de conexión */
     #ProtobjectPlusButton {
-        width: 100px !important;
+        width: 120px !important;
         background-color: var(--primary-color) !important;
         border-radius: var(--radius-md) !important;
         font-family: 'Montserrat', sans-serif !important;
         font-weight: 600 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
     }
 
     #ProtobjectPlusButton:hover {
@@ -256,8 +516,66 @@
     }
 
     #ProtobjectPlusButton:after {
-        content: ' Connect';
+        content: ' Conectar';
     }
+
+    .button-group {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin: 1.5rem 0;
+        flex-wrap: wrap;
+    }
+
+    .btn-primary, .btn-secondary {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        font-family: 'Montserrat', sans-serif;
+    }
+
+    .btn-secondary {
+        background: var(--muted-foreground);
+    }
+
+    .btn-primary:hover {
+        background: var(--primary-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
+    }
+
+            .btn-secondary:hover {
+                background: #4b5563;
+                transform: translateY(-2px);
+            }
+    
+            .btn-secondary.muted {
+                background: var(--muted);
+                color: var(--muted-foreground);
+                cursor: not-allowed;
+                transform: none;
+                text-decoration: line-through;
+            }
+        .color-tag {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin: 0 0.2rem;
+    }
+
+    .color-tag.red { background: #fee2e2; color: #dc2626; }
+    .color-tag.blue { background: #dbeafe; color: #2563eb; }
+    .color-tag.green { background: #dcfce7; color: #059669; }
+    .color-tag.purple { background: #f3e8ff; color: #7c3aed; }
+    .color-tag.yellow { background: #fef3c7; color: #ca8a04; }
 
     #placeholder {
         position: absolute;
@@ -276,6 +594,13 @@
     #placeholder .small {
         font-size: 0.9rem;
         color: var(--primary-color);
+    }
+
+    #detection-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
     }
 
     .stats-container {
@@ -317,6 +642,367 @@
         font-weight: 700;
         font-size: 1.2rem;
         color: var(--primary-color);
+    }
+
+    .pizza-detections {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .pizza-item {
+        background: white;
+        padding: 1rem;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border: 1px solid var(--border);
+    }
+
+    .pizza-number {
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 1.2rem;
+    }
+
+    .pizza-color {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+    }
+
+    .no-detection {
+        color: var(--muted-foreground);
+        text-align: center;
+        padding: 1rem;
+        font-style: italic;
+    }
+
+    /* Estilos para predicciones ML */
+    .ml-predictions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .loading-ml, .error-ml {
+        text-align: center;
+        padding: 1rem;
+        color: var(--muted-foreground);
+        font-style: italic;
+    }
+
+    .error-ml {
+        color: #dc2626;
+    }
+
+    .ml-ready {
+        background: white;
+        padding: 1rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        text-align: center;
+    }
+
+    .ml-ready p {
+        margin: 0.25rem 0;
+    }
+
+    .ml-classes {
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .prediction-item {
+        background: white;
+        padding: 1rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        display: grid;
+        grid-template-columns: 120px 1fr 80px;
+        gap: 1rem;
+        align-items: center;
+        transition: all var(--transition-normal);
+    }
+
+    .prediction-item.top-prediction {
+        border: 2px solid var(--primary-color);
+        background: linear-gradient(to right, rgba(8, 145, 178, 0.05), white);
+        box-shadow: 0 2px 8px rgba(8, 145, 178, 0.1);
+    }
+
+    .prediction-label {
+        font-weight: 600;
+        color: var(--foreground);
+        font-size: 1rem;
+    }
+
+    .prediction-item.top-prediction .prediction-label {
+        color: var(--primary-color);
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .prediction-bar-container {
+        background: var(--muted);
+        height: 24px;
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .prediction-bar {
+        background: linear-gradient(to right, var(--primary-color), var(--primary-hover));
+        height: 100%;
+        border-radius: var(--radius-sm);
+        transition: width 0.3s ease;
+    }
+
+    .prediction-value {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--primary-color);
+        text-align: right;
+    }
+
+    .prediction-item.top-prediction .prediction-value {
+        font-size: 1.3rem;
+    }
+
+    @media (max-width: 768px) {
+        .prediction-item {
+            grid-template-columns: 100px 1fr 60px;
+            gap: 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .prediction-label {
+            font-size: 0.9rem;
+        }
+
+        .prediction-value {
+            font-size: 1rem;
+        }
+    }
+
+    /* Estilos para visualización de evento */
+    .event-display {
+        background: white;
+        border: 2px solid var(--border);
+        border-radius: var(--radius-lg);
+        margin: 1.5rem 0;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(-20px);
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .event-display.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .event-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+        color: white;
+        padding: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .event-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .btn-clear {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 2rem;
+        font-weight: 200;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-bottom: 4px; /* Ajuste fino para centrar el '+' visualmente */
+    }
+
+    .btn-clear:hover {
+        background: rgba(0, 0, 0, 0.2);
+        transform: rotate(90deg);
+    }
+
+    .event-content {
+        padding: 2rem;
+    }
+
+    .event-main {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .event-emoji {
+        font-size: 4rem;
+        line-height: 1;
+    }
+
+    .event-details h3 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.8rem;
+        color: var(--foreground);
+    }
+
+    .event-date {
+        color: var(--muted-foreground);
+        margin: 0.25rem 0;
+        font-size: 1rem;
+    }
+
+    .event-category {
+        display: inline-block;
+        background: var(--muted);
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-top: 0.5rem;
+    }
+
+    .event-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-box {
+        background: var(--muted);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        text-align: center;
+        border: 1px solid var(--border);
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.85rem;
+        color: var(--muted-foreground);
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-number {
+        display: block;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .event-description {
+        background: var(--muted);
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .event-description p {
+        margin: 0;
+        color: var(--foreground);
+        line-height: 1.6;
+        font-size: 1rem;
+    }
+
+    /* Mejoras para pizza-item */
+    .pizza-item {
+        background: white;
+        padding: 1rem;
+        border-radius: var(--radius-sm);
+        display: grid;
+        grid-template-columns: auto auto 1fr;
+        align-items: center;
+        gap: 1rem;
+        border: 1px solid var(--border);
+        transition: all 0.2s ease;
+    }
+
+    .pizza-item.has-event {
+        border-left: 4px solid var(--primary-color);
+        background: linear-gradient(to right, rgba(8, 145, 178, 0.05), white);
+    }
+
+    .pizza-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .pizza-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .pizza-color-name {
+        font-weight: 600;
+        color: var(--foreground);
+    }
+
+    .pizza-event {
+        color: var(--primary-color);
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .pizza-no-event {
+        color: var(--muted-foreground);
+        font-size: 0.85rem;
+        font-style: italic;
+    }
+
+    @media (max-width: 768px) {
+        .event-main {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .event-emoji {
+            font-size: 3rem;
+        }
+
+        .event-details h3 {
+            font-size: 1.4rem;
+        }
+
+        .event-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+        }
+
+        .pizza-item {
+            grid-template-columns: auto;
+            gap: 0.5rem;
+        }
+
+        .pizza-info {
+            grid-column: 1 / -1;
+        }
     }
 </style>
 
