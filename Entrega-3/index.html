@@ -1,72 +1,323 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍕 Pizza Pentagon Detector</title>
+    <title>Pizza Index</title>
+    <link rel="icon" href="assets/icons/pizza.svg" type="image/svg+xml">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-    <div class="container" id="desktop-view">
-        <h1>🍕 Pizza Pentagon Detector</h1>
-        
+    <!-- Scripts de Protobject Framework -->
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <div class="container">
+        <header class="header">
+            <h1>
+                <img src="assets/icons/pizza.svg" alt="Pizza" class="title-icon">
+                Pizza Index
+            </h1>
+            <p>Detector de pizzas en tiempo real - Vista del Computador</p>
+        </header>
+
         <div class="instructions">
             <h2>📋 Instrucciones:</h2>
             <ol>
                 <li>Esta página se abre en tu <strong>COMPUTADOR</strong></li>
-                <li>Haz clic en "Generar QR Code"</li>
+                <li>Haz clic en el botón <strong>"+ Connect"</strong> en la esquina superior derecha</li>
                 <li>Escanea el código QR con la cámara de tu <strong>CELULAR</strong></li>
                 <li>En el celular, acepta los permisos de cámara</li>
-                <li>La cámara del celular aparecerá aquí en el computador</li>
+                <li>La detección de pizzas aparecerá aquí en el computador</li>
             </ol>
         </div>
 
-        <div class="button-group">
-            <button id="generateQR" onclick="inicializarComputador()">🎯 Generar QR Code</button>
-            <button id="testCamera" onclick="testCamaraLocal()">🎥 Test Cámara Local</button>
-        </div>
-
         <div id="video-container">
-            <video id="video" autoplay playsinline></video>
             <canvas id="canvas"></canvas>
+            <div id="placeholder">
+                <p>📱 Esperando conexión del celular...</p>
+                <p class="small">Haz clic en "+ Connect" arriba para generar el QR</p>
+            </div>
         </div>
 
         <div id="info">
-            <div id="status">🔵 Presiona "Generar QR Code" para comenzar</div>
+            <div id="status">🔵 Esperando conexión del celular</div>
             <div id="detection">Ninguna pizza detectada</div>
         </div>
 
-        <div id="qr-container" style="display: none;">
-            <h3>📱 Escanea este QR con tu celular:</h3>
-            <canvas id="qr-code"></canvas>
-            <p class="qr-url" id="qr-url"></p>
+        <div class="stats-container">
+            <h3>📊 Estadísticas de Detección:</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Frames recibidos:</span>
+                    <span class="stat-value" id="frame-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Brillo promedio:</span>
+                    <span class="stat-value" id="brightness">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">🔴 Rojo:</span>
+                    <span class="stat-value" id="red-percent">0%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">🟢 Verde:</span>
+                    <span class="stat-value" id="green-percent">0%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">🔵 Azul:</span>
+                    <span class="stat-value" id="blue-percent">0%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">🟡 Amarillo:</span>
+                    <span class="stat-value" id="yellow-percent">0%</span>
+                </div>
+            </div>
         </div>
 
         <div class="debug-info">
             <h4>📊 Registro de Conexión:</h4>
             <div id="debug-log"></div>
         </div>
+
+        <footer class="footer">
+            <p>Proyecto IIC2026 - Visualización de Información 2025</p>
+            <p>Usando Protobject Framework para comunicación entre dispositivos</p>
+        </footer>
     </div>
 
-    <div class="container mobile-view" id="mobile-view">
-        <h1 style="text-align: center; color: #333;">📱 Cámara del Celular</h1>
-        <div style="padding: 20px;">
-            <video id="mobile-video" autoplay playsinline style="width: 100%; max-width: 640px; margin: 0 auto; display: block; border-radius: 10px; background: black;"></video>
-            <div id="mobile-status" style="text-align: center; margin: 20px; font-weight: bold; font-size: 1.2em; padding: 15px; background: #fff3cd; border-radius: 10px;">
-                🔄 Iniciando...
-            </div>
-            <div style="text-align: center; margin: 20px; background: white; padding: 15px; border-radius: 10px;">
-                <p style="color: #333; margin-bottom: 10px;">📊 Estadísticas:</p>
-                <p style="color: #667eea; font-size: 1.5em; font-weight: bold;">
-                    Frames enviados: <span id="frame-counter">0</span>
-                </p>
-            </div>
-        </div>
-    </div>
+    <script>
+        // ==========================================
+        // VARIABLES GLOBALES
+        // ==========================================
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status');
+        const detectionEl = document.getElementById('detection');
+        const debugLog = document.getElementById('debug-log');
+        const placeholder = document.getElementById('placeholder');
 
-    <!-- IMPORTANTE: Cargar librerías ANTES del script.js -->
-    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="script.js"></script>
+        let frameCount = 0;
+        let isConnected = false;
+
+        // ==========================================
+        // FUNCIONES DE DEBUG
+        // ==========================================
+        function log(message, type = 'info') {
+            console.log(message);
+            if (debugLog) {
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                if (type === 'error') entry.classList.add('log-error');
+                if (type === 'success') entry.classList.add('log-success');
+
+                const timestamp = new Date().toLocaleTimeString();
+                entry.textContent = `[${timestamp}] ${message}`;
+
+                debugLog.appendChild(entry);
+                debugLog.scrollTop = debugLog.scrollHeight;
+            }
+        }
+
+        function updateStatus(message, type = 'info') {
+            if (statusEl) {
+                statusEl.textContent = message;
+                statusEl.className = '';
+                if (type === 'success') statusEl.classList.add('connected');
+                if (type === 'error') statusEl.classList.add('error');
+            }
+            log(message, type);
+        }
+
+        // ==========================================
+        // RECIBIR MENSAJES DEL CELULAR
+        // ==========================================
+        Protobject.Core.onReceived(function (message) {
+            if (!isConnected) {
+                isConnected = true;
+                placeholder.style.display = 'none';
+                updateStatus('🟢 Celular conectado! Recibiendo video...', 'success');
+            }
+
+            if (message && message.type === 'frame') {
+                mostrarFrame(message.frame);
+            }
+        });
+
+        // ==========================================
+        // MOSTRAR FRAME DEL CELULAR
+        // ==========================================
+        function mostrarFrame(frameData) {
+            const img = new Image();
+            img.onload = () => {
+                if (canvas.width !== img.width || canvas.height !== img.height) {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                }
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+
+                frameCount++;
+                detectarPizzas();
+            };
+            img.onerror = () => {
+                log('❌ Error cargando frame', 'error');
+            };
+            img.src = frameData;
+        }
+
+        // ==========================================
+        // DETECCIÓN DE PIZZAS
+        // ==========================================
+        function detectarPizzas() {
+            if (!canvas.width || !canvas.height) return;
+
+            try {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                let totalBrightness = 0;
+                let redPixels = 0;
+                let greenPixels = 0;
+                let bluePixels = 0;
+                let yellowPixels = 0;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    totalBrightness += (r + g + b) / 3;
+
+                    // Detectar colores dominantes
+                    if (r > 150 && g < 100 && b < 100) redPixels++;
+                    if (g > 150 && r < 100 && b < 100) greenPixels++;
+                    if (b > 150 && r < 100 && g < 100) bluePixels++;
+                    if (r > 150 && g > 150 && b < 100) yellowPixels++; // Amarillo = rojo + verde
+                }
+
+                const avgBrightness = Math.round(totalBrightness / (data.length / 4));
+                const totalPixels = data.length / 4;
+
+                const redPercent = Math.round(redPixels / totalPixels * 100);
+                const greenPercent = Math.round(greenPixels / totalPixels * 100);
+                const bluePercent = Math.round(bluePixels / totalPixels * 100);
+                const yellowPercent = Math.round(yellowPixels / totalPixels * 100);
+
+                // Actualizar estadísticas
+                document.getElementById('frame-count').textContent = frameCount;
+                document.getElementById('brightness').textContent = avgBrightness;
+                document.getElementById('red-percent').textContent = redPercent + '%';
+                document.getElementById('green-percent').textContent = greenPercent + '%';
+                document.getElementById('blue-percent').textContent = bluePercent + '%';
+                document.getElementById('yellow-percent').textContent = yellowPercent + '%';
+
+                // Detección de pizza (colores típicos: rojo del tomate, amarillo del queso)
+                let pizzaDetected = '';
+                if (yellowPercent > 15 || redPercent > 10) {
+                    pizzaDetected = '🍕 ¡Posible pizza detectada! ';
+                    if (yellowPercent > 15) pizzaDetected += '(Queso detectado) ';
+                    if (redPercent > 10) pizzaDetected += '(Salsa de tomate detectada) ';
+                } else {
+                    pizzaDetected = 'Ninguna pizza detectada';
+                }
+
+                detectionEl.textContent = pizzaDetected;
+
+            } catch (error) {
+                log('❌ Error en detección: ' + error, 'error');
+            }
+        }
+
+        // ==========================================
+        // INICIALIZACIÓN
+        // ==========================================
+        log('🍕 Pizza Index iniciado (Computador)', 'success');
+        log('📱 Esperando que el celular se conecte...', 'info');
+        updateStatus('🔵 Esperando conexión del celular', 'info');
+    </script>
 </body>
+
+<style>
+    /* Personalizar botón de conexión */
+    #ProtobjectPlusButton {
+        width: 100px !important;
+        background-color: var(--primary-color) !important;
+        border-radius: var(--radius-md) !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 600 !important;
+    }
+
+    #ProtobjectPlusButton:hover {
+        background-color: var(--primary-hover) !important;
+    }
+
+    #ProtobjectPlusButton:after {
+        content: ' Connect';
+    }
+
+    #placeholder {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: var(--muted-foreground);
+    }
+
+    #placeholder p {
+        margin: 0.5rem 0;
+        font-size: 1.1rem;
+    }
+
+    #placeholder .small {
+        font-size: 0.9rem;
+        color: var(--primary-color);
+    }
+
+    .stats-container {
+        background: var(--muted);
+        padding: 1.5rem;
+        border-radius: var(--radius-lg);
+        margin: 1.5rem 0;
+        border: 1px solid var(--border);
+    }
+
+    .stats-container h3 {
+        margin-bottom: 1rem;
+        color: var(--foreground);
+        font-size: 1.1rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .stat-item {
+        background: white;
+        padding: 0.75rem;
+        border-radius: var(--radius-sm);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid var(--border);
+    }
+
+    .stat-label {
+        font-weight: 500;
+        color: var(--muted-foreground);
+    }
+
+    .stat-value {
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: var(--primary-color);
+    }
+</style>
+
 </html>

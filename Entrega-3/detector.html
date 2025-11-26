@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizza Index - Detector (Celular)</title>
+    <link rel="icon" href="assets/icons/pizza.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Scripts de Protobject Framework -->
+    <script src="https://app.protobject.com/framework/p.js"></script>
+    <script src="config.js"></script>
+
+    <div class="container mobile-container">
+        <header class="header">
+            <h1>
+                <img src="assets/icons/pizza.svg" alt="Pizza" class="title-icon">
+                Pizza Index
+            </h1>
+            <p>Vista del Celular - Detector</p>
+        </header>
+
+        <div class="mobile-instructions">
+            <p>📱 Apunta la cámara hacia una pizza</p>
+            <p>Los datos se envían al computador en tiempo real</p>
+        </div>
+
+        <div class="mobile-video-container">
+            <video id="mobile-video" autoplay playsinline></video>
+            <div id="camera-overlay">
+                <div class="scan-line"></div>
+                <p class="overlay-text">🍕 Buscando pizzas...</p>
+            </div>
+        </div>
+
+        <div id="mobile-status">
+            🔄 Iniciando cámara...
+        </div>
+
+        <div class="mobile-stats">
+            <p>📊 Estadísticas:</p>
+            <p class="stat-highlight">
+                Frames enviados: <span id="frame-counter">0</span>
+            </p>
+            <p class="stat-detail">
+                FPS: <span id="fps-counter">0</span>
+            </p>
+        </div>
+
+        <footer class="footer">
+            <p>Proyecto IIC2026 - Visualización de Información 2025</p>
+        </footer>
+    </div>
+
+    <script>
+        // ==========================================
+        // VARIABLES GLOBALES
+        // ==========================================
+        const mobileVideo = document.getElementById('mobile-video');
+        const mobileStatus = document.getElementById('mobile-status');
+        const frameCounter = document.getElementById('frame-counter');
+        const fpsCounter = document.getElementById('fps-counter');
+        const cameraOverlay = document.getElementById('camera-overlay');
+
+        let frameSent = 0;
+        let lastFrameTime = Date.now();
+        let fps = 0;
+
+        // ==========================================
+        // SOLICITAR CÁMARA
+        // ==========================================
+        mobileStatus.textContent = '🔄 Solicitando acceso a cámara...';
+
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: 'environment', // Cámara trasera
+                width: { ideal: 640 },
+                height: { ideal: 480 }
+            }
+        })
+            .then((stream) => {
+                mobileVideo.srcObject = stream;
+                mobileStatus.textContent = '✅ Cámara activada - Transmitiendo...';
+                mobileStatus.style.background = '#d4edda';
+                mobileStatus.style.color = '#155724';
+
+                // Ocultar overlay cuando la cámara esté lista
+                setTimeout(() => {
+                    cameraOverlay.style.opacity = '0';
+                }, 1000);
+
+                // Enviar frames continuamente
+                setInterval(() => {
+                    enviarFrame();
+                }, 150); // Enviar ~6-7 frames por segundo
+
+                // Calcular FPS
+                setInterval(() => {
+                    const now = Date.now();
+                    const timeDiff = (now - lastFrameTime) / 1000;
+                    fps = Math.round(1 / timeDiff);
+                    fpsCounter.textContent = fps;
+                    lastFrameTime = now;
+                }, 1000);
+            })
+            .catch((error) => {
+                console.error('❌ Error de cámara:', error);
+                mobileStatus.textContent = '❌ ' + error.message;
+                mobileStatus.style.background = '#f8d7da';
+                mobileStatus.style.color = '#721c24';
+
+                if (error.name === 'NotAllowedError') {
+                    mobileStatus.textContent = '❌ Permiso denegado. Permite la cámara en configuración.';
+                } else if (error.name === 'NotFoundError') {
+                    mobileStatus.textContent = '❌ No se encontró cámara en este dispositivo.';
+                }
+            });
+
+        // ==========================================
+        // ENVIAR FRAME AL COMPUTADOR
+        // ==========================================
+        function enviarFrame() {
+            if (!mobileVideo.videoWidth || !mobileVideo.videoHeight) return;
+
+            try {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = mobileVideo.videoWidth;
+                tempCanvas.height = mobileVideo.videoHeight;
+
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(mobileVideo, 0, 0);
+
+                const frameData = tempCanvas.toDataURL('image/jpeg', 0.6);
+
+                // Enviar mensaje al computador (index.html)
+                Protobject.Core.send({
+                    type: 'frame',
+                    frame: frameData,
+                    timestamp: Date.now()
+                }).to("index.html");
+
+                frameSent++;
+                frameCounter.textContent = frameSent;
+
+            } catch (error) {
+                console.error('❌ Error enviando frame:', error);
+            }
+        }
+
+        // ==========================================
+        // INICIALIZACIÓN
+        // ==========================================
+        console.log('📱 Detector de pizza iniciado (Celular)');
+        console.log('🎥 Solicitando permisos de cámara...');
+    </script>
+</body>
+
+<style>
+    /* Estilos específicos para el celular */
+    .mobile-container {
+        padding: 1rem;
+        max-width: 100%;
+    }
+
+    .mobile-instructions {
+        background: var(--muted);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+        text-align: center;
+        border: 1px solid var(--border);
+    }
+
+    .mobile-instructions p {
+        margin: 0.5rem 0;
+        color: var(--foreground);
+        font-size: 0.95rem;
+    }
+
+    .mobile-video-container {
+        position: relative;
+        width: 100%;
+        background: #000;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1rem;
+        border: 2px solid var(--primary-color);
+        box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
+    }
+
+    #mobile-video {
+        width: 100%;
+        display: block;
+        max-height: 60vh;
+        object-fit: cover;
+    }
+
+    #camera-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: opacity 0.5s ease;
+    }
+
+    .scan-line {
+        width: 80%;
+        height: 2px;
+        background: var(--primary-color);
+        animation: scan 2s ease-in-out infinite;
+        box-shadow: 0 0 10px var(--primary-color);
+    }
+
+    @keyframes scan {
+        0%, 100% {
+            transform: translateY(-100px);
+        }
+        50% {
+            transform: translateY(100px);
+        }
+    }
+
+    .overlay-text {
+        color: white;
+        font-size: 1.2rem;
+        margin-top: 2rem;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    #mobile-status {
+        text-align: center;
+        font-weight: bold;
+        font-size: 1.1rem;
+        padding: 1rem;
+        background: #fff3cd;
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+        color: #856404;
+        border: 1px solid var(--border);
+    }
+
+    .mobile-stats {
+        background: white;
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        text-align: center;
+        border: 2px solid var(--border);
+    }
+
+    .mobile-stats p {
+        margin: 0.5rem 0;
+        color: var(--foreground);
+    }
+
+    .stat-highlight {
+        color: var(--primary-color);
+        font-size: 1.3rem;
+        font-weight: bold;
+    }
+
+    .stat-detail {
+        color: var(--muted-foreground);
+        font-size: 0.95rem;
+    }
+
+    /* Ocultar el botón de Protobject en la vista móvil */
+    #ProtobjectPlusButton {
+        display: none !important;
+    }
+</style>
+
+</html>
