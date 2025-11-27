@@ -403,6 +403,10 @@
         // ==========================================
         // INICIALIZACIÓN
         // ==========================================
+        console.log('%c🔧 SISTEMA DE REUBICACIÓN PROTOBJECT ACTIVO', 'background: #0891b2; color: white; padding: 5px; font-weight: bold;');
+        console.log('📍 Todos los elementos de Protobject serán movidos a .button-group');
+        console.log('🔍 Abre la consola para ver el proceso en tiempo real');
+
         log('🍕 Pizza Index iniciado (Computador)', 'success');
         cargarModelo();
 
@@ -411,6 +415,190 @@
             document.removeEventListener('click', startAudioOnFirstClick);
         }
         document.addEventListener('click', startAudioOnFirstClick);
+
+        // ==========================================
+        // MOVER TODOS LOS ELEMENTOS DE PROTOBJECT AL CONTENEDOR
+        // ==========================================
+        let elementosMovidos = new Set(); // Para trackear qué elementos ya movimos
+
+        function moverElementosProtobject() {
+            const buttonGroup = document.querySelector('.button-group');
+            if (!buttonGroup) {
+                console.log('⚠️ No se encontró .button-group');
+                return;
+            }
+
+            const mainControls = document.querySelector('.main-controls');
+            let elementosEncontrados = [];
+
+            // 1. Buscar elementos con ID o clase que contenga "Protobject"
+            const elementosConProtobject = document.querySelectorAll('[id^="Protobject"], [class*="protobject"], [id*="Protobject"], [class*="Protobject"]');
+            elementosEncontrados.push(...elementosConProtobject);
+
+            // 2. Buscar TODOS los div/canvas/img hijos directos del body con position absolute
+            Array.from(document.body.children).forEach(el => {
+                // Excluir elementos conocidos que NO son de Protobject
+                if (el.classList.contains('header') ||
+                    el.classList.contains('footer') ||
+                    el.classList.contains('main-content') ||
+                    el.classList.contains('top-right-controls') ||
+                    el.classList.contains('button-group') ||
+                    el.classList.contains('main-controls') ||
+                    el.classList.contains('right-column') ||
+                    el.classList.contains('left-column') ||
+                    el === buttonGroup ||
+                    el === mainControls ||
+                    buttonGroup.contains(el) || // Ya está dentro del button-group
+                    el.contains(buttonGroup) || // Es padre del button-group
+                    el.tagName === 'SCRIPT' ||
+                    el.tagName === 'STYLE' ||
+                    el.tagName === 'VIDEO') {
+                    return;
+                }
+
+                const style = window.getComputedStyle(el);
+                const esAbsoluto = style.position === 'absolute' || style.position === 'fixed';
+
+                if (esAbsoluto) {
+                    elementosEncontrados.push(el);
+                    console.log('🔍 Elemento absoluto encontrado:', el.tagName, el.id || '(sin id)', el.textContent?.substring(0, 30) || '');
+                }
+            });
+
+            // 2.5 Buscar específicamente CANVAS que no sean los del video
+            document.querySelectorAll('canvas').forEach(canvas => {
+                if (canvas.id !== 'canvas' && canvas.id !== 'detection-canvas' && !buttonGroup.contains(canvas)) {
+                    elementosEncontrados.push(canvas);
+                    console.log('🔍 Canvas encontrado (probablemente QR):', canvas.id || '(sin id)', canvas.width, 'x', canvas.height);
+                }
+            });
+
+            // 3. Buscar específicamente divs con texto que contengan palabras clave de Protobject
+            document.querySelectorAll('body > div').forEach(div => {
+                // Excluir contenedores principales
+                if (div === buttonGroup ||
+                    div === mainControls ||
+                    div.contains(buttonGroup) ||
+                    buttonGroup.contains(div) ||
+                    div.classList.contains('header') ||
+                    div.classList.contains('footer') ||
+                    div.classList.contains('main-content') ||
+                    div.classList.contains('top-right-controls')) {
+                    return;
+                }
+
+                const texto = div.textContent || '';
+                if (texto.includes('Celular') || texto.includes('Detector') || texto.includes('Conectado')) {
+                    elementosEncontrados.push(div);
+                    console.log('🔍 Elemento con texto Protobject encontrado:', texto.substring(0, 50));
+                }
+            });
+
+            // Eliminar duplicados
+            const todosLosElementos = [...new Set(elementosEncontrados)];
+
+            if (todosLosElementos.length > 0) {
+                todosLosElementos.forEach(elemento => {
+                    // VALIDACIONES DE SEGURIDAD
+                    // Si ya lo movimos antes, no hacer nada
+                    if (elementosMovidos.has(elemento)) return;
+
+                    // NO mover si es el buttonGroup mismo o lo contiene
+                    if (elemento === buttonGroup || elemento.contains(buttonGroup)) {
+                        console.log('⚠️ Saltando elemento que contiene buttonGroup');
+                        return;
+                    }
+
+                    // NO mover si ya está dentro del buttonGroup
+                    if (buttonGroup.contains(elemento)) {
+                        console.log('⚠️ Elemento ya está dentro del buttonGroup');
+                        return;
+                    }
+
+                    // Remover estilos inline de posicionamiento
+                    elemento.style.position = 'static';
+                    elemento.style.top = '';
+                    elemento.style.right = '';
+                    elemento.style.bottom = '';
+                    elemento.style.left = '';
+                    elemento.style.transform = '';
+                    elemento.style.margin = '0.5rem auto';
+                    elemento.style.display = 'block';
+                    elemento.style.textAlign = 'center';
+
+                    // Ajustar tamaño según tipo de elemento
+                    if (elemento.tagName === 'CANVAS') {
+                        // Para QR codes, mantener tamaño original pero limitado
+                        elemento.style.maxWidth = '200px';
+                        elemento.style.height = 'auto';
+                    } else {
+                        // Para texto, usar ancho completo del contenedor
+                        elemento.style.width = 'auto';
+                        elemento.style.maxWidth = '100%';
+                    }
+
+                    // Mover el elemento al contenedor (doble verificación)
+                    try {
+                        buttonGroup.appendChild(elemento);
+                        elementosMovidos.add(elemento);
+
+                        // FORZAR visibilidad inmediatamente después de mover
+                        elemento.style.opacity = '1';
+                        elemento.style.visibility = 'visible';
+                        elemento.style.pointerEvents = 'auto';
+
+                        console.log('✅ MOVIDO elemento de Protobject:', elemento.tagName, elemento.id || elemento.textContent?.substring(0, 30));
+                    } catch (error) {
+                        console.error('❌ Error al mover elemento:', error, elemento);
+                    }
+                });
+
+                console.log(`📦 Total elementos de Protobject en contenedor: ${elementosMovidos.size}`);
+            }
+        }
+
+        // Usar MutationObserver con debouncing para evitar llamadas excesivas
+        let observerTimeout;
+        const observer = new MutationObserver((mutations) => {
+            // Solo procesar si se agregaron nodos nuevos al body
+            const seAgregaronNodosAlBody = mutations.some(mutation =>
+                mutation.type === 'childList' &&
+                mutation.addedNodes.length > 0 &&
+                mutation.target === document.body
+            );
+
+            if (seAgregaronNodosAlBody) {
+                // Debounce: esperar 100ms antes de procesar
+                clearTimeout(observerTimeout);
+                observerTimeout = setTimeout(() => {
+                    moverElementosProtobject();
+                }, 100);
+            }
+        });
+
+        // Observar cambios solo en hijos directos del body
+        observer.observe(document.body, {
+            childList: true,
+            subtree: false, // Solo hijos directos del body
+        });
+
+        // Ejecutar periódicamente con setInterval (cada 500ms durante los primeros 10 segundos)
+        let contador = 0;
+        const intervalId = setInterval(() => {
+            moverElementosProtobject();
+            contador++;
+            if (contador > 20) { // Detener después de 10 segundos (20 * 500ms)
+                clearInterval(intervalId);
+                console.log('⏹️ Detención de búsqueda automática de elementos Protobject');
+            }
+        }, 500);
+
+        // También timeouts iniciales
+        setTimeout(moverElementosProtobject, 100);
+        setTimeout(moverElementosProtobject, 500);
+        setTimeout(moverElementosProtobject, 1000);
+        setTimeout(moverElementosProtobject, 2000);
+        setTimeout(moverElementosProtobject, 3000);
     </script>
 <style>
     :root {
@@ -508,6 +696,7 @@
         background: transparent; /* SIN CONTENEDOR */
         border: none; /* SIN CONTENEDOR */
         padding: 1.5rem;
+        position: relative; /* Para que .button-group se posicione relativo a esta columna */
     }
 
     #video-container {
@@ -536,10 +725,12 @@
     .main-controls {
         margin: 0;
         padding: 0;
-        display: flex; /* Added this line */
+        display: flex;
         flex-wrap: wrap;
         justify-content: center;
         width: 100%;
+        position: relative; /* Para que .button-group se posicione correctamente */
+        height: 0; /* No ocupa espacio en el flujo */
     }
     
     #info {
@@ -578,10 +769,37 @@
     .left-column::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 
     /* Estilos de botones y otros elementos */
-    /* Personalizar botón de conexión */
+    /* FORZAR TODOS LOS ELEMENTOS DE PROTOBJECT A POSICIÓN ESTÁTICA */
+    [id^="Protobject"], [class*="protobject"], [id*="Protobject"], [class*="Protobject"] {
+        position: static !important;
+        top: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        left: auto !important;
+        transform: none !important;
+    }
+
+    /* Forzar elementos absolute hijos directos del body (excepto top-right-controls) */
+    body > div[style*="position: absolute"]:not(.header):not(.footer):not(.main-content):not(.top-right-controls),
+    body > div[style*="position:absolute"]:not(.header):not(.footer):not(.main-content):not(.top-right-controls) {
+        position: static !important;
+        top: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        left: auto !important;
+    }
+
+    /* Personalizar botón de conexión de Protobject */
     #ProtobjectPlusButton {
-        width: 120px !important;
+        /* Forzar posicionamiento estático cuando esté en el contenedor */
+        position: static !important;
+        width: auto !important;
+        min-width: 120px !important;
         background-color: var(--primary-color) !important;
+        color: white !important;
+        border: none !important;
+        padding: 0.75rem 2rem !important;
+        font-size: 1rem !important;
         border-radius: var(--radius-md) !important;
         font-family: 'Montserrat', sans-serif !important;
         font-weight: 600 !important;
@@ -589,14 +807,93 @@
         align-items: center !important;
         justify-content: center !important;
         gap: 0.5rem !important;
+        cursor: pointer !important;
+        transition: all var(--transition-normal) !important;
+        /* Remover coordenadas de posicionamiento */
+        top: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        left: auto !important;
     }
 
     #ProtobjectPlusButton:hover {
         background-color: var(--primary-hover) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 4px 12px rgba(8, 145, 178, 0.2) !important;
     }
 
     #ProtobjectPlusButton:after {
         content: ' Conectar';
+    }
+
+    /* Estilos para elementos de texto/estado de Protobject */
+    [id^="Protobject"]:not(#ProtobjectPlusButton) {
+        background: var(--muted) !important;
+        color: var(--foreground) !important;
+        padding: 0.5rem 1rem !important;
+        border-radius: var(--radius-md) !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-size: 0.85rem !important;
+        margin: 0.5rem auto !important;
+        text-align: center !important;
+        display: block !important;
+        width: auto !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Estilos para elementos dentro del button-group */
+    .button-group > div:not(#ProtobjectPlusButton),
+    .button-group > canvas,
+    .button-group > img {
+        flex-shrink: 0; /* No permitir que se compriman */
+        width: auto !important;
+        max-width: 100% !important;
+    }
+
+    /* Estilos para QR code de Protobject */
+    img[id^="Protobject"], canvas[id^="Protobject"] {
+        margin: 0.5rem auto !important;
+        display: block !important;
+        max-width: 200px !important;
+        height: auto !important;
+    }
+
+    /* Canvas dentro del button-group (QR) */
+    .button-group > canvas {
+        max-width: 200px !important;
+        height: auto !important;
+        background: white !important;
+        padding: 0.5rem !important;
+        border-radius: var(--radius-md) !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+    }
+
+    /* REGLA NUCLEAR: Forzar TODOS los elementos hijos del body (excepto estructura) */
+    body > div:not(.header):not(.footer):not(.main-content):not(.top-right-controls),
+    body > canvas:not(#canvas):not(#detection-canvas) {
+        /* Si tienen position absolute, probablemente son de Protobject */
+    }
+
+    /* Ocultar elementos de Protobject que aparezcan fuera del contenedor hasta que JS los mueva */
+    body > div[style*="position"][style*="absolute"]:not(.header):not(.footer):not(.main-content):not(.top-right-controls),
+    body > canvas[style*="position"][style*="absolute"]:not(#canvas):not(#detection-canvas) {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition: opacity 0.3s ease !important;
+        visibility: hidden !important;
+    }
+
+    /* Cuando estén dentro del button-group, mostrarlos INMEDIATAMENTE */
+    .button-group > div,
+    .button-group > canvas,
+    .button-group > img,
+    .button-group [id^="Protobject"],
+    .button-group * {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        visibility: visible !important;
+        transition: none !important;
     }
 
     .volume-control { display: flex; align-items: center; gap: 0.5rem; width: 180px; }
@@ -609,7 +906,58 @@
     .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: var(--primary-color);
  border-radius: 50%; cursor: grab; border: 3px solid white; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); transition: all 0.2s ease; }
     .volume-slider::-moz-range-thumb { width: 20px; height: 20px; background: var(--primary-color); border-radius: 50%; cursor: grab; border: 3px solid white; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); transition: all 0.2s ease; }
-    .button-group { display: flex; gap: 1rem; justify-content: center; margin: 0; flex-wrap: wrap; background-color: yellow; /* Temporary for debugging */ }
+    .button-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        justify-content: flex-start;
+
+        /* Posicionamiento absoluto para no mover otros elementos */
+        position: absolute;
+        top: -80px; /* Subido 30px (de -50px a -80px) */
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+
+        /* Ancho y altura controlados - NO CRECE BRUSCAMENTE */
+        width: 300px;
+        min-height: 350px; /* Altura mínima para acomodar botón + texto + QR */
+        max-height: 600px; /* Altura máxima para evitar desbordamiento */
+        height: auto; /* Se ajusta automáticamente pero respetando min/max */
+
+        /* Scroll si hay muchos elementos */
+        overflow-y: auto;
+        overflow-x: hidden;
+
+        /* Fondo semi-transparente para ver mejor */
+        background: rgba(249, 250, 251, 0.95);
+        padding: 1rem;
+        border-radius: var(--radius-lg);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+
+        /* Transición suave si cambia de tamaño */
+        transition: height 0.3s ease;
+    }
+
+    /* Scrollbar personalizado para button-group */
+    .button-group::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .button-group::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 3px;
+    }
+
+    .button-group::-webkit-scrollbar-thumb {
+        background: var(--primary-color);
+        border-radius: 3px;
+    }
+
+    .button-group::-webkit-scrollbar-thumb:hover {
+        background: var(--primary-hover);
+    }
     .btn-primary, .btn-secondary { background: var(--primary-color); color: white; border: none; padding: 0.75rem 2rem; font-size: 1rem; font-weight: 600; border-radius: var(--radius-md); cursor: pointer; transition: all var(--transition-normal); }
     .btn-secondary { background: var(--muted-foreground); }
     .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(8, 145, 178, 0.2); }

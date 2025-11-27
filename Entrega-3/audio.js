@@ -1,13 +1,12 @@
 
-// ==========================================
-// MOTOR DE AUDIO CON TONE.JS (VERSIÓN CON ARCHIVOS DE AUDIO)
-// ==========================================
-
 const AudioEngine = {
     isStarted: false,
     players: {}, // Usaremos Players en lugar de Synths
     reverb: null,
     activeSounds: new Map(), // Para rastrear sonidos activos por color
+    volumeLevel: 50, // Nivel de volumen global (0-100)
+    previousVolumeLevel: 50,
+    isMuted: false,
 
     // Iniciar el contexto de audio y cargar los archivos
     async start() {
@@ -16,6 +15,7 @@ const AudioEngine = {
             await Tone.start();
             this.isStarted = true;
             console.log("AudioContext iniciado correctamente.");
+            this.setVolume(this.volumeLevel); // Aplicar volumen inicial
             await this.loadPlayers();
         } catch (error) {
             console.error("Error al iniciar AudioContext:", error);
@@ -33,12 +33,21 @@ const AudioEngine = {
                 return new Promise((resolve, reject) => {
                     const player = new Tone.Player({
                         url: config.soundFile,
-                        loop: true, // Los sonidos se repetirán en bucle
-                        fadeIn: 0.5,
+                        loop: false, // CAMBIO: El sonido no se repite
+                        fadeIn: 0.1,
                         fadeOut: 0.5,
                         onload: resolve,
                         onerror: reject,
                     }).connect(this.reverb);
+
+                    // Cuando el sonido termina de reproducirse, se elimina de los sonidos activos
+                    player.onstop = () => {
+                        if (this.activeSounds.has(color)) {
+                            this.activeSounds.delete(color);
+                            console.log(`✅ Sonido ${color} finalizado naturalmente.`);
+                        }
+                    };
+
                     this.players[color] = player;
                 });
             });
@@ -51,6 +60,38 @@ const AudioEngine = {
         }
     },
 
+    // Establecer el volumen maestro
+    setVolume(level) {
+        this.volumeLevel = parseInt(level);
+        if (this.volumeLevel > 0) {
+            this.isMuted = false;
+        }
+
+        if (Tone && Tone.Destination) {
+            if (this.volumeLevel === 0) {
+                Tone.Destination.volume.value = -Infinity;
+                this.isMuted = true;
+            } else {
+                // Convertir 0-100 a un rango de dB (ej. -40 a 0)
+                const db = (this.volumeLevel / 100) * 40 - 40;
+                Tone.Destination.volume.value = db;
+            }
+        }
+    },
+
+    // Silenciar o activar el sonido
+    toggleMute() {
+        if (this.isMuted) {
+            // Unmute: restore previous volume
+            this.setVolume(this.previousVolumeLevel);
+        } else {
+            // Mute: save current volume and set to 0
+            this.previousVolumeLevel = this.volumeLevel;
+            this.setVolume(0);
+        }
+        return { isMuted: this.isMuted, volume: this.volumeLevel };
+    },
+
     // Reproducir sonido para un evento
     play(evento) {
         if (!this.isStarted || !evento || !this.players[evento.color]) return;
@@ -61,26 +102,27 @@ const AudioEngine = {
         if (!player.loaded || this.activeSounds.has(color)) return;
 
         let playbackRate = 1.0;
-        let volume = -6; // Volumen base en dB
+        // El volumen del player individual se puede usar para ajustes relativos
+        let relativeVolume = 0; // en dB
 
         // Ajustar parámetros según la gravedad (tamaño)
         switch (tamaño) {
             case 15: // Grave
                 playbackRate = 1.1;
-                volume = -2; // Más volumen
+                relativeVolume = 0; // Sonido más fuerte
                 break;
             case 10: // Moderado
                 playbackRate = 1.0;
-                volume = -6;
+                relativeVolume = -6;
                 break;
             case 5: // Menor
                 playbackRate = 0.9;
-                volume = -10; // Menos volumen
+                relativeVolume = -12; // Sonido más bajo
                 break;
         }
 
         player.playbackRate = playbackRate;
-        player.volume.value = volume;
+        player.volume.value = relativeVolume;
         
         player.start();
         this.activeSounds.set(color, player);
